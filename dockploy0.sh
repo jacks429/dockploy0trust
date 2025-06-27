@@ -1,4 +1,66 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+########################################
+# Helpers for NetBird
+########################################
+NETBIRD_API_URL="${NETBIRD_MANAGEMENT_URL:-https://api.netbird.io}"
+
+fetch_setup_key() {
+    # 1) honour an existing key
+    if [ -n "${NETBIRD_SETUP_KEY:-}" ]; then
+        echo "$NETBIRD_SETUP_KEY"
+        return 0
+    fi
+
+    # 2) otherwise create / reuse via REST API
+    if [ -z "${NETBIRD_API_TOKEN:-}" ]; then
+        echo "NETBIRD_API_TOKEN not set; cannot auto-create setup-key" >&2
+        exit 1
+    fi
+
+    local payload
+    payload=$(
+      jq -n --arg name "$(hostname)-dokploy" \
+            '{name:$name,type:"reusable",expiresIn:0}'
+    )
+
+    curl -fsSL -H "Authorization: Bearer ${NETBIRD_API_TOKEN}" \
+              -H "Content-Type: application/json"                \
+              -d "$payload"                                      \
+              "${NETBIRD_API_URL}/api/setup-keys" | jq -r '.key'
+}
+
+join_netbird() {
+    if netbird status 2>&1 | grep -q 'Management: Connected'; then
+        echo "NetBird already connected – skipping 'up'"
+        return 0
+    fi
+
+    local key
+    key="$(fetch_setup_key)"
+    echo "Running: netbird up --setup-key ****"
+    sudo netbird up --setup-key "$key"
+}
+
+########################################
+# NetBird installer
+########################################
+install_netbird() {
+    if command -v netbird >/dev/null 2>&1; then
+        echo "NetBird binary present – skipping install step"
+    else
+        echo "Installing NetBird headless…"
+        export USE_BIN_INSTALL=true SKIP_UI_APP=true
+        curl -fsSL https://pkgs.netbird.io/install.sh | bash
+    fi
+
+    sudo netbird service install || true
+    sudo netbird service start   || true
+    join_netbird
+}
+
+
 install_dokploy() {
     if [ "$(id -u)" != "0" ]; then
         echo "This script must be run as root" >&2
@@ -202,9 +264,15 @@ update_dokploy() {
     echo "Dokploy has been updated to the latest version."
 }
  
-# Main script execution
-if [ "$1" = "update" ]; then
-    update_dokploy
-else
-    install_dokploy
-fi
+########################################
+# Main entry-point
+########################################
+case "${1:-}" in
+  update)
+      update_dokploy
+      ;;
+  *)
+      install_netbird        # <- NEW first step
+      install_dokploy
+      ;;
+esac
