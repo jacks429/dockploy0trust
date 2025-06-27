@@ -292,6 +292,7 @@ update_dokploy() {
 case "${1:-}" in
   worker)
     install_netbird
+    install_dokploy
     join_dokploy
     ;;
   update)
