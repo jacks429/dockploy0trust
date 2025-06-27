@@ -286,20 +286,6 @@ update_dokploy() {
 }
  
 
-########################################
-# Main entry-point
-########################################
-case "${1:-}" in
-  worker)
-    install_netbird
-    install_dokploy
-    join_dokploy
-    ;;
-  update)
-    update_dokploy
-    ;;
-  *)
-    install_netbird
-    install_dokploy
-    ;;
-esac
+install_netbird       # bring up NetBird
+install_dokploy_worker  # install Docker only
+join_dokploy          # fetch & run the Swarm join command
