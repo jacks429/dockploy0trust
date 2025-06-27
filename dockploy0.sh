@@ -2,11 +2,9 @@
 set -euo pipefail
 
 
-apt-get update -y
+apt-get update 
 apt-get install -y jq curl
 
-: "${DOKPLOY_API:?Environment variable DOKPLOY_API must be set (e.g. https://your-dokploy.example.com/api)}"
-: "${DOKPLOY_BEARER_TOKEN:?Environment variable DOKPLOY_BEARER_TOKEN must be set}"
 
 ########################################
 # Helpers for NetBird
