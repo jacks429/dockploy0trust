@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+
 apt-get update -y
 apt-get install -y jq curl
 
@@ -287,5 +288,5 @@ update_dokploy() {
  
 
 install_netbird       # bring up NetBird
-install_dokploy_worker  # install Docker only
+install_dokploy  # install Docker only
 join_dokploy          # fetch & run the Swarm join command
