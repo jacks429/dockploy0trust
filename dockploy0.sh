@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+apt-get update -y
+apt-get install -y jq curl
+
+: "${DOKPLOY_API:?Environment variable DOKPLOY_API must be set (e.g. https://your-dokploy.example.com/api)}"
+: "${DOKPLOY_BEARER_TOKEN:?Environment variable DOKPLOY_BEARER_TOKEN must be set}"
+
 ########################################
 # Helpers for NetBird
 ########################################
@@ -41,6 +47,21 @@ join_netbird() {
     key="$(fetch_setup_key)"
     echo "Running: netbird up --setup-key ****"
     sudo netbird up --setup-key "$key"
+}
+
+########################################
+# Helpers for Dokploy cluster API
+########################################
+join_dokploy() {
+    echo "Fetching join command from Dokploy at $DOKPLOY_API"
+    local cmd
+    cmd=$(curl -fsSL \
+      -H "Authorization: Bearer ${DOKPLOY_BEARER_TOKEN}" \
+      "${DOKPLOY_API}/cluster.addWorker"
+    )
+    echo "Running Dokploy join command:"
+    echo "  $cmd"
+    eval "$cmd"
 }
 
 ########################################
@@ -264,15 +285,20 @@ update_dokploy() {
     echo "Dokploy has been updated to the latest version."
 }
  
+
 ########################################
 # Main entry-point
 ########################################
 case "${1:-}" in
+  worker)
+    install_netbird
+    join_dokploy
+    ;;
   update)
-      update_dokploy
-      ;;
+    update_dokploy
+    ;;
   *)
-      install_netbird        # <- NEW first step
-      install_dokploy
-      ;;
+    install_netbird
+    install_dokploy
+    ;;
 esac
